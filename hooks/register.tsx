@@ -21,6 +21,7 @@ import {
   mapper,
   parseGit,
   parseNumstat,
+  parseAlacritty,
   parseTheme,
   posix,
   relative,
@@ -59,6 +60,7 @@ const LIGHT_ADD_COLOR = '#14532d'
 const LIGHT_DEL_COLOR = '#7f1d1d'
 const LIGHT_HOVER = '#f0f2f5'
 const THEME_FILE = '.local/state/omarchy/current/theme/colors.toml'
+const ALACRITTY_FILE = '.config/alacritty/alacritty.toml'
 const THEME_POLL_MS = 2000
 const FONT_SCRIPT =
   'if command -v fc-list >/dev/null 2>&1; then f=$(fc-list ":charset=$1" file | grep -vi lastresort | head -n1 | cut -d: -f1); fi; ' +
@@ -1066,13 +1068,27 @@ async function navigate($: EngineInterface, key: string, shift = false, surface?
 }
 
 async function loadTheme($: EngineInterface): Promise<void> {
-  const path = `${(await $.env.get('HOME')) ?? ''}/${THEME_FILE}`
+  const home = (await $.env.get('HOME')) ?? ''
+  // Omarchy's theme first, then the Alacritty config, so the pane takes the terminal's own colours.
+  const sources: [string, (toml: string) => Theme][] = [
+    [THEME_FILE, parseTheme],
+    [ALACRITTY_FILE, parseAlacritty],
+  ]
   try {
-    const stat = await $.fs.stat(path)
-    if (stat.kind !== 'file') throw new Error('no theme file')
-    if (stat.mtimeMs === themeMtime) return
-    await $.state.set(THEME, parseTheme(String(await $.fs.read(path))))
-    themeMtime = stat.mtimeMs
+    let found = false
+    for (const [file, parse] of sources) {
+      const path = `${home}/${file}`
+      try {
+        const stat = await $.fs.stat(path)
+        if (stat.kind !== 'file') continue
+        found = true
+        if (stat.mtimeMs === themeMtime) return
+        await $.state.set(THEME, parse(String(await $.fs.read(path))))
+        themeMtime = stat.mtimeMs
+        return
+      } catch {}
+    }
+    if (!found) throw new Error('no theme file')
   } catch {
     if (themeMtime === 0) return
     await $.state.set(THEME, DEFAULT_THEME)

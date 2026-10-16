@@ -53,6 +53,20 @@ export function emptyTree(root: string): FileTree {
   }
 }
 
+// The same palette read from an Alacritty config, so the pane matches the terminal it sits in:
+// its background and text, the normal blue for accents, the dim text for secondary.
+export function parseAlacritty(toml: string): Theme {
+  const get = (k: string) => toml.match(new RegExp(`^\\s*${k}\\s*=\\s*"(#[0-9a-fA-F]{6})"`, 'm'))?.[1]
+  return {
+    fg: get('foreground') ?? DEFAULT_THEME.fg,
+    accent: get('blue') ?? DEFAULT_THEME.accent,
+    muted: get('dim_foreground') ?? DEFAULT_THEME.muted,
+    urgent: get('red') ?? DEFAULT_THEME.urgent,
+    selection: get('black') ?? DEFAULT_THEME.selection,
+    bg: get('background') ?? DEFAULT_THEME.bg,
+  }
+}
+
 export function parseTheme(toml: string): Theme {
   const get = (k: string) => toml.match(new RegExp(`^${k}\\s*=\\s*"(#[0-9a-fA-F]{6})"`, 'm'))?.[1]
   return {
