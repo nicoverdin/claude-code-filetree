@@ -1,7 +1,8 @@
 import type { ClientModule, RenderElement } from 'claude-code'
 
 export type Seg = { t: string; c?: string; b?: boolean; s?: boolean; i?: boolean; sh?: string; dim?: boolean; one?: boolean; spin?: boolean; bg?: string; tab?: string }
-export type RowSpec = { id: string; left: Seg[]; right: Seg[] }
+// `lead` is the blank lines drawn above the row, to set groups apart.
+export type RowSpec = { id: string; left: Seg[]; right: Seg[]; lead?: number }
 export type RowsProps = {
   rows: RowSpec[]
   active: string
@@ -10,8 +11,6 @@ export type RowsProps = {
   tones: Record<string, { bright: string[]; dim: string[] }>
   spinner?: string[]
   pointer?: boolean
-  // Blank lines under each row: the space between rows, Finder-sidebar style.
-  gap?: number
   bar?: { pos: number; size: number; thumb: string; track: string }
   preview?: { text: string; path: string; startLine: number; markdown: boolean }
 }
@@ -35,8 +34,15 @@ const Rows: ClientModule<RowsProps, Local> = (props, surface) => {
     state = { hover: -1, phase: 0, drag: false, ref: {} }
     surface.setState(state)
   }
-  const gap = Math.max(0, props.gap ?? 0)
-  const step = 1 + gap
+  // The line each row is drawn on, and the row each line belongs to (blank lead lines belong to none).
+  const lineOf: number[] = []
+  const rowAt: number[] = []
+  props.rows.forEach((r, i) => {
+    const line = (i === 0 ? 0 : (lineOf[i - 1] ?? 0) + 1 + (r.lead ?? 0))
+    lineOf.push(line)
+    rowAt[line] = i
+  })
+  const totalLines = (lineOf[lineOf.length - 1] ?? 0) + 1
   let visible = props.rows.length
   const lit = props.rows.some(r => r.left.some(s => s.sh || s.spin) || r.right.some(s => s.sh || s.spin))
   if (lit && !state.ref.stop) {
@@ -61,12 +67,12 @@ const Rows: ClientModule<RowsProps, Local> = (props, surface) => {
       }
       if (e.type === 'down' || e.type === 'move') {
         if (!cur.drag) surface.setState({ ...cur, drag: true, hover: -1 })
-        surface.post({ scrollTo: Math.max(0, Math.min(1, e.y / Math.max(1, props.rows.length * step - 1))) })
+        surface.post({ scrollTo: Math.max(0, Math.min(1, e.y / Math.max(1, totalLines - 1))) })
         return
       }
     }
-    const line = Math.floor(e.y / step)
-    if (e.type === 'leave' || e.y < 0 || line >= visible) {
+    const line = rowAt[e.y] ?? -1
+    if (e.type === 'leave' || e.y < 0 || line < 0 || line >= visible) {
       if (cur.hover !== -1) surface.setState({ ...cur, hover: -1 })
       return
     }
@@ -136,6 +142,12 @@ const Rows: ClientModule<RowsProps, Local> = (props, surface) => {
     )
   const rowEl = (r: RowSpec, i: number) => (
     <Box flexDirection="column">
+    {Array.from({ length: i === 0 ? 0 : (r.lead ?? 0) }, () => (
+      <Box flexDirection="row" height={1}>
+        <Box flexGrow={1} />
+        {barChar(i)}
+      </Box>
+    ))}
     <Box
       flexDirection="row"
       height={1}
@@ -153,12 +165,6 @@ const Rows: ClientModule<RowsProps, Local> = (props, surface) => {
         </Text>
       )}
     </Box>
-    {Array.from({ length: gap }, () => (
-      <Box flexDirection="row" height={1}>
-        <Box flexGrow={1} />
-        {barChar(i)}
-      </Box>
-    ))}
     </Box>
   )
   const drawn: RenderElement[] = []

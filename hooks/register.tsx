@@ -47,8 +47,8 @@ const RUNNING_MAX_MS = 600_000
 const NO_REPO_DEPTH = 4
 const DOUBLE_MS = 450
 const FIND_LIMIT = 200
-// Blank lines between tree rows; 0 packs them tight.
-const ROW_GAP = 1
+// Blank lines above each top-level entry, to set the groups apart; 0 packs them tight.
+const GROUP_GAP = 1
 const ROWS_BUDGET = 80_000
 const READ_REVEAL_LIMIT = 12
 const SEARCH_REVEAL_LIMIT = 60
@@ -1438,7 +1438,7 @@ export const register: Register = (on, options) => {
     const width = Math.max(24, e.props.bodyColumns)
     const rows = visibleRows(t)
     const fixed = 3 + (t.top ? (t.branch ? 1 : 0) : showHints ? 1 : 0) + (t.selected || latest ? 1 : 0)
-    const room = nativeScroll ? Math.max(1, rows.length) : Math.max(5, Math.floor(((e.props.scroll?.bodyRows ?? 40) - fixed) / (1 + ROW_GAP)))
+    const room = nativeScroll ? Math.max(1, rows.length) : Math.max(5, (e.props.scroll?.bodyRows ?? 40) - fixed)
     const isLit = (id: string) => bright.has(id) || dimmed.has(id)
     const focus = followClaude && t.flashOn ? ([...t.flash].reverse().find(id => id !== BRANCH_ROW) ?? t.cursor) : t.cursor
     const at = Math.max(0, rows.findIndex(r => r.node.id === focus))
@@ -1458,6 +1458,9 @@ export const register: Register = (on, options) => {
     }
     view = { from, max }
     const shown = rows.slice(from, from + room - pinned.length)
+    // Each top-level entry after the first takes GROUP_GAP extra lines; drop rows from the end until it all fits.
+    const gapLines = () => (nativeScroll ? 0 : shown.filter((r, i) => i > 0 && r.depth === 0).length * GROUP_GAP)
+    while (shown.length > 3 && pinned.length + shown.length + gapLines() > room) shown.pop()
     if (t.showSize) wantSizes($, [...pinned, ...shown].filter(r => r.node.kind === 'dir' && !(r.node.id in t.dirSizes)).map(r => r.node.id))
     const totals: [number, number] = t.top ? (t.diff[t.root] ?? [0, 0]) : [0, 0]
     const countSegs = (c: [number, number, number] | undefined): Seg[] => {
@@ -1530,7 +1533,7 @@ export const register: Register = (on, options) => {
       right.push(...dirCounts)
       if (badge) right.push({ t: badge, c: status ? gitColor : theme.muted, b: true })
       right.push({ t: ' ' })
-      return { id: n.id, left: clean(left), right: clean(right) }
+      return { id: n.id, left: clean(left), right: clean(right), lead: r.depth === 0 ? GROUP_GAP : 0 }
     }
 
     const note = (text: string): RowSpec => ({ id: '', left: [{ t: text, c: theme.muted }], right: [] })
@@ -1644,7 +1647,7 @@ export const register: Register = (on, options) => {
         <Client
           key="rows"
           module="./rows.tsx"
-          props={{ rows: specs, active: t.cursor, ...rowColors, pointer, gap: ROW_GAP, ...(bar ? { bar } : {}) } satisfies RowsProps}
+          props={{ rows: specs, active: t.cursor, ...rowColors, pointer, ...(bar ? { bar } : {}) } satisfies RowsProps}
         />
         <Box flexGrow={1} />
         {(t.selected || latest) && (
