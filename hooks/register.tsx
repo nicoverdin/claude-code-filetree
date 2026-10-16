@@ -1609,7 +1609,7 @@ export const register: Register = (on, options) => {
             {` ${header}`}
           </Text>
           <Box flexGrow={1} />
-          {hint(buttons, header.length)}
+          {hint(buttons, header.length + 1)}
           <Box flexDirection="row" gap={1}>
             {buttons.map(button)}
             <Text> </Text>
