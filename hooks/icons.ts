@@ -105,7 +105,8 @@ const EXTS: Record<string, number> = {
 
 export function fileIcon(n: FileNode, open: boolean, isRepo: boolean): string {
   if (n.kind === 'link') return cp(0xf481)
-  if (n.kind === 'dir') return cp(isRepo ? 0xf02a2 : open ? 0xe5fe : 0xe5ff)
+  // Filled Material folders, closed and open: one calm shape, coloured by the pane's accent.
+  if (n.kind === 'dir') return cp(isRepo ? 0xf02a2 : open ? 0xf0770 : 0xf024b)
   const lower = n.name.toLowerCase()
   const named = NAMES[lower]
   if (named) return cp(named)

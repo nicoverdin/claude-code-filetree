@@ -1507,16 +1507,16 @@ export const register: Register = (on, options) => {
             : ''
       const locText = loc ? `${loc[0] ? ` +${loc[0]}` : ''}${loc[1] ? ` -${loc[1]}` : ''}` : ''
       const dirCounts = n.kind === 'dir' ? countSegs(t.counts[n.id]) : []
-      const badge = dirCounts.length ? '' : status ? ` ${status}` : isIgnored ? (unicode ? ' ⊘' : ' \u{f05e}') : '  '
+      const badge = dirCounts.length ? '' : status ? ' ●' : isIgnored ? (unicode ? ' ⊘' : ' \u{f05e}') : '  '
       const countsText = dirCounts.map(c => c.t).join('')
-      const cols = Math.max(4, width - r.depth * 2 - 6 - (meta ? meta.length + 1 : 0) - locText.length - badge.length - countsText.length)
+      const cols = Math.max(4, width - r.depth * 2 - 7 - (meta ? meta.length + 1 : 0) - locText.length - badge.length - countsText.length)
       const name = n.name.length > cols ? n.name.slice(0, cols - 1) + '…' : n.name
-      const caret = n.kind === 'dir' ? (unicode ? (r.open ? '▾' : '▸') : r.open ? CHEVRON_OPEN : CHEVRON_CLOSED) + ' ' : '  '
+      const caret = n.kind === 'dir' ? (unicode ? (r.open ? '⌄' : '›') : r.open ? CHEVRON_OPEN : CHEVRON_CLOSED) + ' ' : '  '
       const isRepo = n.kind === 'dir' && n.id === t.top
-      const glyph = unicode ? (n.kind === 'dir' ? '■' : '·') : fileIcon(n, r.open, isRepo)
+      const glyph = unicode ? (n.kind === 'dir' ? '●' : '·') : fileIcon(n, r.open, isRepo)
       const lit = isBright || isDim
       const left: Seg[] = [
-        { t: '  '.repeat(r.depth) },
+        { t: ' ' + '  '.repeat(r.depth) },
         { t: caret, c: theme.muted },
         lit ? { t: glyph + ' ', sh: tone, dim: isDim, one: true } : { t: glyph + ' ', c: iconColor },
         lit ? { t: name, sh: tone, dim: isDim, b: isBright } : { t: name, c: nameColor, b: n.id === t.selected, s: status === 'D' && n.kind !== 'dir' },
@@ -1605,8 +1605,8 @@ export const register: Register = (on, options) => {
     return (
       <Box flexDirection="column" minHeight={Math.max(1, e.props.scroll?.bodyRows ?? 1)} backgroundColor={theme.bg || undefined}>
         <Box flexDirection="row">
-          <Text bold color={theme.accent} wrap="truncate-start">
-            {header}
+          <Text bold color={theme.fg || undefined} wrap="truncate-start">
+            {` ${header}`}
           </Text>
           <Box flexGrow={1} />
           {hint(buttons, header.length)}
@@ -1621,8 +1621,8 @@ export const register: Register = (on, options) => {
           <Box flexGrow={1}>
             <Input
               key="q"
-              label="/ "
-              placeholder="search"
+              label={unicode ? ' ⌕ ' : ' \u{f0349} '}
+              placeholder="Search"
               submitLabel="jump"
               value={t.query}
               onInput={(v: string) => void search($, v)}
