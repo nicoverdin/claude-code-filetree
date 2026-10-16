@@ -10,6 +10,8 @@ export type RowsProps = {
   tones: Record<string, { bright: string[]; dim: string[] }>
   spinner?: string[]
   pointer?: boolean
+  // Blank lines under each row: the space between rows, Finder-sidebar style.
+  gap?: number
   bar?: { pos: number; size: number; thumb: string; track: string }
   preview?: { text: string; path: string; startLine: number; markdown: boolean }
 }
@@ -33,6 +35,8 @@ const Rows: ClientModule<RowsProps, Local> = (props, surface) => {
     state = { hover: -1, phase: 0, drag: false, ref: {} }
     surface.setState(state)
   }
+  const gap = Math.max(0, props.gap ?? 0)
+  const step = 1 + gap
   let visible = props.rows.length
   const lit = props.rows.some(r => r.left.some(s => s.sh || s.spin) || r.right.some(s => s.sh || s.spin))
   if (lit && !state.ref.stop) {
@@ -49,7 +53,6 @@ const Rows: ClientModule<RowsProps, Local> = (props, surface) => {
     state.ref.unpoint = undefined
   } else state.ref.unpoint = surface.onPointer(e => {
     const cur = surface.state ?? state
-    const span = Math.max(1, props.rows.length - 1)
     const onBar = Boolean(props.bar) && e.x >= surface.columns - 1
     if (props.bar && (cur.drag || (onBar && e.type === 'down' && (e.button ?? 'left') === 'left'))) {
       if (e.type === 'up' || e.type === 'leave') {
@@ -58,16 +61,17 @@ const Rows: ClientModule<RowsProps, Local> = (props, surface) => {
       }
       if (e.type === 'down' || e.type === 'move') {
         if (!cur.drag) surface.setState({ ...cur, drag: true, hover: -1 })
-        surface.post({ scrollTo: Math.max(0, Math.min(1, e.y / span)) })
+        surface.post({ scrollTo: Math.max(0, Math.min(1, e.y / Math.max(1, props.rows.length * step - 1))) })
         return
       }
     }
-    if (e.type === 'leave' || e.y < 0 || e.y >= visible) {
+    const line = Math.floor(e.y / step)
+    if (e.type === 'leave' || e.y < 0 || line >= visible) {
       if (cur.hover !== -1) surface.setState({ ...cur, hover: -1 })
       return
     }
-    if (e.type === 'move' && !e.button && cur.hover !== e.y) surface.setState({ ...cur, hover: e.y })
-    const row = props.rows[e.y]
+    if (e.type === 'move' && !e.button && cur.hover !== line) surface.setState({ ...cur, hover: line })
+    const row = props.rows[line]
     if (e.type === 'down' && e.button === 'right' && row?.id) {
       surface.post({ copy: row.id, shift: Boolean(e.shift) })
       return
@@ -124,7 +128,14 @@ const Rows: ClientModule<RowsProps, Local> = (props, surface) => {
       </Text>
     )
   }
+  const barChar = (i: number) =>
+    props.bar && (
+      <Text color={i >= props.bar.pos && i < props.bar.pos + props.bar.size ? props.bar.thumb : props.bar.track}>
+        {i >= props.bar.pos && i < props.bar.pos + props.bar.size ? '┃' : '│'}
+      </Text>
+    )
   const rowEl = (r: RowSpec, i: number) => (
+    <Box flexDirection="column">
     <Box
       flexDirection="row"
       height={1}
@@ -141,6 +152,13 @@ const Rows: ClientModule<RowsProps, Local> = (props, surface) => {
           {i >= props.bar.pos && i < props.bar.pos + props.bar.size ? '┃' : '│'}
         </Text>
       )}
+    </Box>
+    {Array.from({ length: gap }, () => (
+      <Box flexDirection="row" height={1}>
+        <Box flexGrow={1} />
+        {barChar(i)}
+      </Box>
+    ))}
     </Box>
   )
   const drawn: RenderElement[] = []

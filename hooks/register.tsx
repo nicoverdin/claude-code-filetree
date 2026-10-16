@@ -47,6 +47,8 @@ const RUNNING_MAX_MS = 600_000
 const NO_REPO_DEPTH = 4
 const DOUBLE_MS = 450
 const FIND_LIMIT = 200
+// Blank lines between tree rows; 0 packs them tight.
+const ROW_GAP = 1
 const ROWS_BUDGET = 80_000
 const READ_REVEAL_LIMIT = 12
 const SEARCH_REVEAL_LIMIT = 60
@@ -1436,7 +1438,7 @@ export const register: Register = (on, options) => {
     const width = Math.max(24, e.props.bodyColumns)
     const rows = visibleRows(t)
     const fixed = 3 + (t.top ? (t.branch ? 1 : 0) : showHints ? 1 : 0) + (t.selected || latest ? 1 : 0)
-    const room = nativeScroll ? Math.max(1, rows.length) : Math.max(5, (e.props.scroll?.bodyRows ?? 40) - fixed)
+    const room = nativeScroll ? Math.max(1, rows.length) : Math.max(5, Math.floor(((e.props.scroll?.bodyRows ?? 40) - fixed) / (1 + ROW_GAP)))
     const isLit = (id: string) => bright.has(id) || dimmed.has(id)
     const focus = followClaude && t.flashOn ? ([...t.flash].reverse().find(id => id !== BRANCH_ROW) ?? t.cursor) : t.cursor
     const at = Math.max(0, rows.findIndex(r => r.node.id === focus))
@@ -1509,14 +1511,14 @@ export const register: Register = (on, options) => {
       const dirCounts = n.kind === 'dir' ? countSegs(t.counts[n.id]) : []
       const badge = dirCounts.length ? '' : status ? ' ●' : isIgnored ? (unicode ? ' ⊘' : ' \u{f05e}') : '  '
       const countsText = dirCounts.map(c => c.t).join('')
-      const cols = Math.max(4, width - r.depth * 2 - 7 - (meta ? meta.length + 1 : 0) - locText.length - badge.length - countsText.length)
+      const cols = Math.max(4, width - r.depth * 2 - 9 - (meta ? meta.length + 1 : 0) - locText.length - badge.length - countsText.length)
       const name = n.name.length > cols ? n.name.slice(0, cols - 1) + '…' : n.name
       const caret = n.kind === 'dir' ? (unicode ? (r.open ? '⌄' : '›') : r.open ? CHEVRON_OPEN : CHEVRON_CLOSED) + ' ' : '  '
       const isRepo = n.kind === 'dir' && n.id === t.top
       const glyph = unicode ? (n.kind === 'dir' ? '●' : '·') : fileIcon(n, r.open, isRepo)
       const lit = isBright || isDim
       const left: Seg[] = [
-        { t: ' ' + '  '.repeat(r.depth) },
+        { t: '  ' + '  '.repeat(r.depth) },
         { t: caret, c: theme.muted },
         lit ? { t: glyph + ' ', sh: tone, dim: isDim, one: true } : { t: glyph + ' ', c: iconColor },
         lit ? { t: name, sh: tone, dim: isDim, b: isBright } : { t: name, c: nameColor, b: n.id === t.selected, s: status === 'D' && n.kind !== 'dir' },
@@ -1527,6 +1529,7 @@ export const register: Register = (on, options) => {
       if (loc && loc[1] > 0) right.push({ t: ` -${loc[1]}`, c: delColor })
       right.push(...dirCounts)
       if (badge) right.push({ t: badge, c: status ? gitColor : theme.muted, b: true })
+      right.push({ t: ' ' })
       return { id: n.id, left: clean(left), right: clean(right) }
     }
 
@@ -1641,7 +1644,7 @@ export const register: Register = (on, options) => {
         <Client
           key="rows"
           module="./rows.tsx"
-          props={{ rows: specs, active: t.cursor, ...rowColors, pointer, ...(bar ? { bar } : {}) } satisfies RowsProps}
+          props={{ rows: specs, active: t.cursor, ...rowColors, pointer, gap: ROW_GAP, ...(bar ? { bar } : {}) } satisfies RowsProps}
         />
         <Box flexGrow={1} />
         {(t.selected || latest) && (
